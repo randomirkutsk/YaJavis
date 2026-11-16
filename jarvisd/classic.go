@@ -365,6 +365,12 @@ func (e *Engine) classicBrain(cfg Settings, p Profile) Brain {
 	}
 	instructions := e.instructions(cfg, p) + "\n" + backendRules + e.tools.Context()
 	return func(ctx context.Context, text string) (string, error) {
-		return askOpenAI(ctx, e.proxy.Client(60*time.Second), cfg.OpenAIKey, p, instructions, text, e.tools)
+		if cfg.OpenAIKey != "" {
+			return askOpenAI(ctx, e.proxy.Client(60*time.Second), cfg.OpenAIKey, p, instructions, text, e.tools)
+		}
+		if cfg.GeminiKey != "" {
+			return askGemini(ctx, e.proxy.ClientFor("gemini", 60*time.Second), cfg.GeminiKey, instructions, text, p.WebSearch)
+		}
+		return "", errors.New("нет ключа OpenAI или Gemini")
 	}
 }

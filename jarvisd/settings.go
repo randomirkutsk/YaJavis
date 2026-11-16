@@ -198,16 +198,17 @@ func (s *Settings) IsNight() bool {
 
 var defaultLed = LedSettings{Enabled: true, Brightness: 45, Listening: "#ffffff", Thinking: "#00b4ff", Speaking: "#5a2dff"}
 
-const defaultPrompt = `Ты — Джарвис, голосовой помощник в умной колонке. Говоришь по-русски, коротко и по делу, с лёгкой иронией, как дворецкий из фильма. Обращаешься к хозяину на «ты».`
+const defaultPrompt = `Ты — Джарвис (J.A.R.V.I.S.), личный голосовой ассистент и дворецкий в умной колонке. Говоришь по-русски, лаконично, точно и с лёгкой иронией. Обращаешься к хозяину на «вы» или «сэр». Отвечай устно и по делу, без спецсимволов и markdown.`
 const broPrompt = `Ты — Джарвис, но общаешься с хозяином как близкий кореш: «братишка», «бро», на «ты», с юмором и подколами, можешь крепко выразиться к месту. Говоришь коротко, живо, по-пацански, но по делу и честно. Если чего-то не знаешь — так и говоришь.`
 
 func defaultSettings() *Settings {
 	return &Settings{
 		SessionKey: randHex(32),
 		Profiles: []Profile{{
-			ID: "p1", Name: "Джарвис", Color: 1, Mode: "live", Voice: "cedar", BackendModel: "gpt-6-luna",
+			ID: "p1", Name: "Джарвис", Color: 1, Mode: "live", Engine: "gemini",
+			LiveModel: "gemini-3.8-live", Voice: "Charon", BackendModel: "gemini-3.8-flash",
 			Effort: "low", Priority: true, WebSearch: true, IdleS: 8, Prompt: "jarvis",
-			LLMModel: "gpt-6-luna", TTSModel: "eleven_flash_v2_5", STTEngine: "elevenlabs",
+			LLMModel: "gemini-3.8-flash", TTSModel: "eleven_flash_v2_5", STTEngine: "elevenlabs",
 		}},
 		Active:          "p1",
 		Prompts:         []Prompt{{ID: "jarvis", Name: "Джарвис", Text: defaultPrompt}, {ID: "bro", Name: "Братишка", Text: broPrompt}},
