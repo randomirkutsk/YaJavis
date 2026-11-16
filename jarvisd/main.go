@@ -505,6 +505,7 @@ func main() {
 	log.SetFlags(0)
 	log.SetOutput(logTZ) // время в журнале — по часовому поясу из настроек колонки
 	log.Printf("jarvisd %s", version)
+	go ensureStationIntegrations(*dataDir)
 
 	store, err := OpenStore(filepath.Join(*dataDir, "settings.json"))
 	if err != nil {

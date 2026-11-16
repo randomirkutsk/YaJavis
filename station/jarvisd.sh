@@ -7,6 +7,8 @@
 #   jarvisd.sh uninstall  — убрать всё и перезагрузить колонку
 D=/data/opt/jarvisd
 RUN=/tmp/jarvisd
+[ -z "$SSL_CERT_FILE" ] && [ -f /system/vendor/quasar/ca-certificates.crt ] && export SSL_CERT_FILE=/system/vendor/quasar/ca-certificates.crt
+[ -z "$SSL_CERT_FILE" ] && [ -f "$D/ca-certificates.crt" ] && export SSL_CERT_FILE="$D/ca-certificates.crt"
 LAUNCH=/system/vendor/quasar/launch.json
 PID=$RUN/jarvisd.pid
 LOOP=$RUN/loop.pid

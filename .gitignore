@@ -20,6 +20,7 @@ __pycache__/
 venv/
 build/
 installer/payload/
+jarvisd-*
 jarvisd/google_app_generated.go
 *.exe
 *.test
