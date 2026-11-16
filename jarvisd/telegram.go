@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,9 +37,31 @@ func NewTelegramBot(store *Store, proxy *Proxy, engine *Engine, memory *MemorySt
 	}
 }
 
+func cleanTgToken(token string) string {
+	t := strings.TrimSpace(token)
+	t = strings.TrimPrefix(t, "bot")
+	t = strings.TrimPrefix(t, "BOT")
+	t = strings.TrimPrefix(t, "Bot")
+	t = strings.TrimPrefix(t, "/")
+	return strings.TrimSpace(t)
+}
+
+func parseChatIDs(raw string) []string {
+	var out []string
+	for _, part := range strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ';' || r == ' ' || r == '\n' || r == '\t'
+	}) {
+		part = strings.TrimSpace(part)
+		if part != "" && !slices.Contains(out, part) {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
 func (b *TelegramBot) Configured() bool {
 	s := b.store.Get()
-	return s.TelegramEnabled && strings.TrimSpace(s.TelegramBotToken) != "" && strings.TrimSpace(s.TelegramChatID) != ""
+	return s.TelegramEnabled && cleanTgToken(s.TelegramBotToken) != "" && len(parseChatIDs(s.TelegramChatID)) > 0
 }
 
 func (b *TelegramBot) Running() bool {
@@ -51,7 +74,7 @@ func (b *TelegramBot) Status() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	s := b.store.Get()
-	if strings.TrimSpace(s.TelegramBotToken) == "" {
+	if cleanTgToken(s.TelegramBotToken) == "" {
 		return "не настроен"
 	}
 	if !s.TelegramEnabled {
@@ -79,7 +102,7 @@ func (b *TelegramBot) Start() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	s := b.store.Get()
-	token := strings.TrimSpace(s.TelegramBotToken)
+	token := cleanTgToken(s.TelegramBotToken)
 	if !s.TelegramEnabled || token == "" {
 		return
 	}
@@ -110,20 +133,43 @@ func (b *TelegramBot) Restart() {
 
 func (b *TelegramBot) SendToOwner(text string) error {
 	s := b.store.Get()
-	token := strings.TrimSpace(s.TelegramBotToken)
-	chatID := strings.TrimSpace(s.TelegramChatID)
-	if token == "" || chatID == "" {
-		return errors.New("Telegram не настроен (нужны токен и chat ID)")
+	token := cleanTgToken(s.TelegramBotToken)
+	if token == "" {
+		return errors.New("Telegram не настроен (нужен токен бота)")
 	}
-	return b.SendMessage(token, chatID, text)
+	targets := parseChatIDs(s.TelegramChatID)
+	if len(targets) == 0 {
+		return errors.New("Telegram Chat ID не указан")
+	}
+	var lastErr error
+	sentCount := 0
+	for _, target := range targets {
+		if err := b.SendMessage(token, target, text); err != nil {
+			lastErr = err
+		} else {
+			sentCount++
+		}
+	}
+	if sentCount == 0 && lastErr != nil {
+		return lastErr
+	}
+	return nil
 }
 
 func (b *TelegramBot) SendMessage(token, chatID, text string) error {
+	return b.sendMessageMode(token, chatID, text, "HTML")
+}
+
+func (b *TelegramBot) sendMessageMode(token, chatID, text, mode string) error {
+	token = cleanTgToken(token)
 	client := b.proxy.ClientFor("telegram", 20*time.Second)
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
 	payload := map[string]any{
 		"chat_id": chatID,
 		"text":    text,
+	}
+	if mode != "" {
+		payload["parse_mode"] = mode
 	}
 	data, _ := json.Marshal(payload)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
@@ -145,19 +191,29 @@ func (b *TelegramBot) SendMessage(token, chatID, text string) error {
 		return fmt.Errorf("ответ Telegram: %s", string(body))
 	}
 	if !res.OK {
+		// Если Telegram ругается на ошибки HTML-парсинга (например, в тексте ответа модели), отправляем без HTML
+		if mode != "" && strings.Contains(strings.ToLower(res.Description), "can't parse entities") {
+			return b.sendMessageMode(token, chatID, text, "")
+		}
 		return errors.New(res.Description)
 	}
 	return nil
 }
 
 func (b *TelegramBot) Test(token, chatID string) error {
-	token = strings.TrimSpace(token)
-	chatID = strings.TrimSpace(chatID)
-	if token == "" || chatID == "" {
-		return errors.New("укажите токен бота и chat ID")
+	token = cleanTgToken(token)
+	targets := parseChatIDs(chatID)
+	if token == "" || len(targets) == 0 {
+		return errors.New("укажите токен бота и хотя бы один chat ID")
 	}
-	msg := "👋 Привет! Это Джарвис с вашей Яндекс Станции.\nСвязь успешно проверена и работает!"
-	return b.SendMessage(token, chatID, msg)
+	msg := "👋 <b>Привет!</b> Это Джарвис с вашей Яндекс Станции.\nСвязь успешно проверена и работает!"
+	var lastErr error
+	for _, target := range targets {
+		if err := b.SendMessage(token, target, msg); err != nil {
+			lastErr = err
+		}
+	}
+	return lastErr
 }
 
 type tgUpdate struct {
@@ -178,6 +234,7 @@ type tgUpdate struct {
 }
 
 func (b *TelegramBot) poll(ctx context.Context, token string) {
+	token = cleanTgToken(token)
 	log.Printf("Telegram: бот запускается...")
 	client := b.proxy.ClientFor("telegram", 35*time.Second)
 
@@ -274,18 +331,32 @@ func (b *TelegramBot) poll(ctx context.Context, token string) {
 	}
 }
 
+func (b *TelegramBot) isAllowed(senderID, chatID int64) bool {
+	s := b.store.Get()
+	allowed := parseChatIDs(s.TelegramChatID)
+	if len(allowed) == 0 {
+		return false
+	}
+	strSender := strconv.FormatInt(senderID, 10)
+	strChat := strconv.FormatInt(chatID, 10)
+	for _, id := range allowed {
+		if id == strSender || id == strChat {
+			return true
+		}
+	}
+	return false
+}
+
 func (b *TelegramBot) handleMessage(token string, chatID, senderID int64, text string) {
 	if text == "" {
 		return
 	}
 	s := b.store.Get()
-	targetChatID := strings.TrimSpace(s.TelegramChatID)
-	strSender := strconv.FormatInt(senderID, 10)
 	strChat := strconv.FormatInt(chatID, 10)
 
-	// Безопасность: доступ только для указанного Chat ID
-	if targetChatID != "" && strSender != targetChatID && strChat != targetChatID {
-		warn := fmt.Sprintf("⚠️ Доступ ограничен.\nЭтот бот привязан к Яндекс Станции.\n\nВаш Chat ID: <code>%s</code>\nУкажите его в веб-интерфейсе колонки (Подключения → Telegram).", strChat)
+	// Безопасность: проверяем, разрешён ли этот пользователь (поддержка нескольких ID через запятую)
+	if !b.isAllowed(senderID, chatID) {
+		warn := fmt.Sprintf("⚠️ <b>Доступ ограничен</b>\nЭтот бот привязан к Яндекс Станции.\n\nВаш Chat ID: <code>%s</code>\nДобавьте его в веб-интерфейсе колонки (<b>Подключения → Telegram</b>), можно через запятую к уже существующему.", strChat)
 		_ = b.SendMessage(token, strChat, warn)
 		return
 	}
@@ -297,14 +368,14 @@ func (b *TelegramBot) handleMessage(token string, chatID, senderID int64, text s
 	// 1. Команды /start и /help
 	if text == "/start" || text == "/help" {
 		help := "👋 <b>Привет! Я Джарвис</b> с вашей Яндекс Станции.\n\n" +
-			"Команды:\n" +
-			"• <code>/say &lt;текст&gt;</code> — сказать фразу вслух на колонке\n" +
-			"• <code>/vol &lt;0-10&gt;</code> — изменить громкость колонки\n" +
+			"<b>Команды:</b>\n" +
+			"• <code>/say текст</code> — сказать фразу вслух на колонке\n" +
+			"• <code>/vol 0-10</code> — изменить громкость колонки\n" +
 			"• <code>/status</code> — состояние колонки и сервисов\n" +
-			"• <code>/remember &lt;факт&gt;</code> — сохранить в память\n" +
+			"• <code>/remember факт</code> — сохранить в память\n" +
 			"• <code>/memory</code> — список воспоминаний\n" +
-			"• <code>/forget &lt;слово&gt;</code> — удалить из памяти\n\n" +
-			"💡 Вы также можете просто писать мне любые вопросы — я отвечу с учётом вашей личной памяти и настроек!"
+			"• <code>/forget слово</code> — удалить из памяти\n\n" +
+			"💡 <i>Вы также можете просто писать мне любые вопросы — я отвечу с учётом вашей личной памяти и настроек!</i>"
 		reply(help)
 		return
 	}
@@ -318,12 +389,13 @@ func (b *TelegramBot) handleMessage(token string, chatID, senderID int64, text s
 		}
 		p := s.ActiveProfile()
 		status := fmt.Sprintf("📊 <b>Статус Яндекс Станции</b>\n\n"+
-			"• Ассистент: %s (%s)\n"+
-			"• Громкость: %d/10\n"+
-			"• Записей в памяти: %d\n"+
-			"• Микрофон: %v\n"+
-			"• Разговор сейчас: %v",
-			p.Name, p.Engine, vol, memCount, b.engine.mic.Online(), b.engine.Talking())
+			"• Ассистент: <b>%s</b> (%s)\n"+
+			"• Характер: <b>%s</b>\n"+
+			"• Громкость: <b>%d/10</b>\n"+
+			"• Записей в памяти: <b>%d</b>\n"+
+			"• Микрофон: <b>%v</b>\n"+
+			"• Разговор сейчас: <b>%v</b>",
+			p.Name, p.Engine, p.Prompt, vol, memCount, b.engine.mic.Online(), b.engine.Talking())
 		if b.engine.music != nil && b.engine.music.Status() != "" {
 			status += "\n• Музыка: " + b.engine.music.Status()
 		}
@@ -396,7 +468,7 @@ func (b *TelegramBot) handleMessage(token string, chatID, senderID int64, text s
 			reply("❌ Ошибка сохранения: " + err.Error())
 			return
 		}
-		reply("🧠 Запомнил: «" + it.Fact + "»")
+		reply("🧠 <b>Запомнил:</b> «" + it.Fact + "»")
 		return
 	}
 

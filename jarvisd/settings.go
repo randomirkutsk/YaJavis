@@ -204,6 +204,7 @@ var defaultLed = LedSettings{Enabled: true, Brightness: 45, Listening: "#ffffff"
 
 const defaultPrompt = `Ты — Джарвис (J.A.R.V.I.S.), личный голосовой ассистент и дворецкий в умной колонке. Говоришь по-русски, лаконично, точно и с лёгкой иронией. Обращаешься к хозяину на «вы» или «сэр». Отвечай устно и по делу, без спецсимволов и markdown.`
 const broPrompt = `Ты — Джарвис, но общаешься с хозяином как близкий кореш: «братишка», «бро», на «ты», с юмором и подколами, можешь крепко выразиться к месту. Говоришь коротко, живо, по-пацански, но по делу и честно. Если чего-то не знаешь — так и говоришь.`
+const alicePrompt = `Ты — голосовой помощник в умной колонке с характером Алисы. Твой тон: дружелюбный, живой, с лёгким тёплым юмором и самоиронией, умный, естественный и находчивый. Обращайся к человеку на «ты», как умная и внимательная подруга или компаньон. Отвечай устно, живо, лаконично и по делу. Никогда не используй markdown-разметку, списки, звёздочки или символы форматирования — только живая естественная речь для озвучивания вслух. Если просят что-то сделать (включить музыку, свет, отправить в телеграм, запомнить) — сразу вызывай нужный инструмент и отвечай легко и коротко.`
 
 func defaultSettings() *Settings {
 	return &Settings{
@@ -211,11 +212,11 @@ func defaultSettings() *Settings {
 		Profiles: []Profile{{
 			ID: "p1", Name: "Джарвис", Color: 1, Mode: "live", Engine: "gemini",
 			LiveModel: "gemini-3.8-live", Voice: "Charon", BackendModel: "gemini-3.8-flash",
-			Effort: "low", Priority: true, WebSearch: true, IdleS: 8, Prompt: "jarvis",
+			Effort: "low", Priority: true, WebSearch: true, IdleS: 8, Prompt: "alice",
 			LLMModel: "gemini-3.8-flash", TTSModel: "eleven_flash_v2_5", STTEngine: "elevenlabs",
 		}},
 		Active:          "p1",
-		Prompts:         []Prompt{{ID: "jarvis", Name: "Джарвис", Text: defaultPrompt}, {ID: "bro", Name: "Братишка", Text: broPrompt}},
+		Prompts:         []Prompt{{ID: "alice", Name: "Алиса", Text: alicePrompt}, {ID: "jarvis", Name: "Джарвис", Text: defaultPrompt}, {ID: "bro", Name: "Братишка", Text: broPrompt}},
 		WakeEnabled:     true,
 		WakeSensitivity: 5,
 		FollowUpS:       6,
@@ -302,6 +303,17 @@ func OpenStore(path string) (*Store, error) {
 	}
 	if s.AutoOnce < 1 || !bytes.Contains(data, []byte(`"auto_once"`)) { // автообновление теперь по умолчанию: один раз включаем и тем, кто ставил раньше
 		s.UpdateCheck, s.UpdateAuto, s.AutoOnce, dirty = true, true, 1, true
+	}
+	hasAlice := false
+	for _, p := range s.Prompts {
+		if p.ID == "alice" {
+			hasAlice = true
+			break
+		}
+	}
+	if !hasAlice {
+		s.Prompts = append([]Prompt{{ID: "alice", Name: "Алиса", Text: alicePrompt}}, s.Prompts...)
+		dirty = true
 	}
 	if dirty {
 		if err := st.save(); err != nil {

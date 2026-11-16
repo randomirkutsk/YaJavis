@@ -1045,6 +1045,9 @@ func (w *Web) testNet(rw http.ResponseWriter, r *http.Request) {
 	if s.YouTubeRefresh != "" || w.engine.music != nil {
 		out["youtube"] = check("youtube", "https://www.youtube.com/generate_204", "", "")
 	}
+	if s.TelegramBotToken != "" {
+		out["telegram"] = check("telegram", "https://api.telegram.org/bot"+cleanTgToken(s.TelegramBotToken)+"/getMe", "", "")
+	}
 	writeJSON(rw, 200, out)
 }
 

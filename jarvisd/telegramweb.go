@@ -62,7 +62,7 @@ func (w *Web) putTelegram(rw http.ResponseWriter, r *http.Request) {
 	}
 	err := w.store.Update(func(s *Settings) error {
 		if req.Token != nil {
-			t := strings.TrimSpace(*req.Token)
+			t := cleanTgToken(*req.Token)
 			if t != "" {
 				s.TelegramBotToken = t
 			}
@@ -105,9 +105,9 @@ func (w *Web) testTelegram(rw http.ResponseWriter, r *http.Request) {
 	}
 	_ = readJSON(r, &req)
 	s := w.store.Get()
-	token := strings.TrimSpace(req.Token)
+	token := cleanTgToken(req.Token)
 	if token == "" {
-		token = s.TelegramBotToken
+		token = cleanTgToken(s.TelegramBotToken)
 	}
 	chatID := strings.TrimSpace(req.ChatID)
 	if chatID == "" {

@@ -536,7 +536,7 @@ function haRoomRow(r = {}) {
     <div class="f"><label>Номера зон на карте — только для действия Xiaomi</label><input class="ha-ids" value="${esc(r.room_ids || "")}" placeholder="Например, 3 или 3,9"></div>
     <button class="btn ghost" data-ha-remove>Убрать комнату</button></div>`;
 }
-const NET_NAMES = { openai: "OpenAI", gemini: "Gemini", grok: "Grok", elevenlabs: "ElevenLabs", youtube: "YouTube" };
+const NET_NAMES = { openai: "OpenAI", gemini: "Gemini", grok: "Grok", elevenlabs: "ElevenLabs", youtube: "YouTube", telegram: "Telegram" };
 const VPN_NAMES = [["chatgpt", "Подписка ChatGPT"], ["openai", "OpenAI"], ["gemini", "Google Gemini"], ["grok", "xAI Grok"],
   ["elevenlabs", "ElevenLabs"], ["telegram", "Telegram"], ["youtube", "YouTube"], ["smartlife", "Smart Life"], ["xiaomi", "Xiaomi Home"], ["gdrive", "Google Диск"], ["yandex", "Яндекс"]];
 
@@ -557,14 +557,15 @@ function telegramConn() {
     on: isSet && isEnabled,
     need: false,
     state: stText,
-    body: `<p class="note">Создайте бота в Telegram и укажите его токен и ваш Chat ID. Бот принимает команды только от вас.</p>
+    body: `<p class="note">Создайте бота в Telegram и укажите его токен и ваш Chat ID. Бот принимает команды только от вас и добавленных пользователей.</p>
       <div class="f">
         <label for="tg-token">Токен бота из @BotFather ${tg.token ? `<small class="muted">(${esc(tg.token)})</small>` : ""}</label>
         <input type="password" id="tg-token" placeholder="${isSet ? "Оставьте пустым, чтобы не менять" : "Например, 1234567890:AAH..."}" autocomplete="off">
       </div>
       <div class="f">
-        <label for="tg-chat-id">Ваш Telegram Chat ID</label>
-        <input type="text" id="tg-chat-id" value="${esc(tg.chat_id || "")}" placeholder="Например, 123456789" autocomplete="off">
+        <label for="tg-chat-id">Telegram Chat ID (можно несколько через запятую)</label>
+        <input type="text" id="tg-chat-id" value="${esc(tg.chat_id || "")}" placeholder="Например: 134460301, 987654321" autocomplete="off">
+        <small class="muted" style="margin-top:-6px;display:block;">Укажите ID через запятую (например, ваш и жены), чтобы ботом могли пользоваться члены семьи.</small>
       </div>
       <label class="sw">
         <input type="checkbox" id="tg-enabled"${isEnabled ? " checked" : ""}>
@@ -582,7 +583,8 @@ function telegramConn() {
           <li>Придумайте название и юзернейм (например, <code>MyMidiJarvis_bot</code>).</li>
           <li>Скопируйте выданный API токен и вставьте в поле выше.</li>
           <li>Найдите своего созданного бота в Telegram и нажмите <b>Start</b>.</li>
-          <li>Чтобы узнать свой Chat ID: откройте бота <b>@userinfobot</b> — он покажет ваш Id. Также если просто написать любому своему новому боту, он пришлёт ваш Chat ID в ответ.</li>
+          <li><b>Как узнать Chat ID:</b> откройте бота <b>@userinfobot</b> — он покажет ваш цифровой Id. Либо просто напишите любому новому боту — он сам пришлёт ваш Chat ID в ответ.</li>
+          <li><b>Как добавить жену или семью:</b> пусть супруга напишет вашему боту любое сообщение — бот пришлёт её Chat ID. Скопируйте и допишите его в поле Chat ID через запятую (например: <code>134460301, 987654321</code>) и нажмите «Сохранить».</li>
         </ol>
       </details>
       <details>
