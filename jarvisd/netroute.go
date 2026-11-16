@@ -25,6 +25,7 @@ var netServices = []netService{
 	{"gemini", "Google Gemini", true},
 	{"grok", "xAI Grok", true},
 	{"elevenlabs", "ElevenLabs", true},
+	{"telegram", "Telegram", true},
 	{"youtube", "YouTube", false},
 	{"xiaomi", "Xiaomi Home", false},
 	{"smartlife", "Smart Life", false},

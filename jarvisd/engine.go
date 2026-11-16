@@ -39,6 +39,8 @@ type Engine struct {
 	alice    *AliceMusic // что играет у Алисы (Яндекс Музыка)
 	train    *Trainer    // записи для дообучения слова
 	bg       *BgRecorder // длинная запись фона на сервер
+	memory   *MemoryStore
+	telegram *TelegramBot
 
 	dataDir string
 
@@ -356,6 +358,11 @@ func (e *Engine) instructions(s Settings, p Profile) string {
 	}
 	if city := s.City; city != "" {
 		text += "\n\nХозяин живёт в городе " + city + " — погода, время и новости по умолчанию для него."
+	}
+	if e.memory != nil {
+		if mem := e.memory.PromptText(); mem != "" {
+			text += "\n\n" + mem
+		}
 	}
 	text += "\n\nКогда для ответа нужен инструмент (поиск в интернете, погода, умный дом, музыка, сложная задача), " +
 		"можно ОДИН раз за ответ коротко сказать вслух живую фразу — «Секунду, гляну», «Сейчас поищу» — и сразу вызывать инструмент. " +

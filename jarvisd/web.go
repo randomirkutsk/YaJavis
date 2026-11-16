@@ -108,6 +108,13 @@ func (w *Web) Serve(addr string) error {
 	mux.HandleFunc("POST /api/home-assistant/rooms/discover", w.auth(w.discoverHARooms))
 	mux.HandleFunc("PUT /api/home-assistant", w.auth(w.putHomeAssistant))
 	mux.HandleFunc("DELETE /api/home-assistant", w.auth(w.deleteHomeAssistant))
+	mux.HandleFunc("GET /api/telegram", w.auth(w.getTelegram))
+	mux.HandleFunc("PUT /api/telegram", w.auth(w.putTelegram))
+	mux.HandleFunc("POST /api/telegram/test", w.auth(w.testTelegram))
+	mux.HandleFunc("DELETE /api/telegram", w.auth(w.deleteTelegram))
+	mux.HandleFunc("GET /api/memory", w.auth(w.getMemory))
+	mux.HandleFunc("POST /api/memory", w.auth(w.addMemory))
+	mux.HandleFunc("DELETE /api/memory", w.auth(w.deleteMemory))
 	mux.HandleFunc("POST /api/youtube/login", w.auth(w.youtubeLogin))
 	mux.HandleFunc("DELETE /api/youtube/login", w.auth(w.youtubeLogout))
 	mux.HandleFunc("GET /api/music", w.auth(w.getMusic))
@@ -406,6 +413,8 @@ func (w *Web) state(rw http.ResponseWriter, r *http.Request) {
 			"led": s.Led, "train_mode": s.TrainMode, "train_limit_mb": s.TrainLimitMB, "dev_mode": s.DevMode, "language": s.Language,
 			"night": night, "night_now": s.IsNight(), "radio": !s.RadioOff},
 		"security": securityChecks(),
+		"telegram": w.telegramState(),
+		"memory":   w.memoryState(),
 	})
 }
 

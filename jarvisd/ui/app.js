@@ -538,7 +538,111 @@ function haRoomRow(r = {}) {
 }
 const NET_NAMES = { openai: "OpenAI", gemini: "Gemini", grok: "Grok", elevenlabs: "ElevenLabs", youtube: "YouTube" };
 const VPN_NAMES = [["chatgpt", "Подписка ChatGPT"], ["openai", "OpenAI"], ["gemini", "Google Gemini"], ["grok", "xAI Grok"],
-  ["elevenlabs", "ElevenLabs"], ["youtube", "YouTube"], ["smartlife", "Smart Life"], ["xiaomi", "Xiaomi Home"], ["gdrive", "Google Диск"], ["yandex", "Яндекс"]];
+  ["elevenlabs", "ElevenLabs"], ["telegram", "Telegram"], ["youtube", "YouTube"], ["smartlife", "Smart Life"], ["xiaomi", "Xiaomi Home"], ["gdrive", "Google Диск"], ["yandex", "Яндекс"]];
+
+function telegramConn() {
+  const tg = S.telegram || {};
+  const isSet = !!tg.set;
+  const isRunning = !!tg.running;
+  const isEnabled = !!tg.enabled;
+  const stText = !isSet ? "не настроен" : !isEnabled ? "выключен" : tg.bot_name ? `@${tg.bot_name}` : "работает";
+
+  return {
+    id: "telegram",
+    group: "services",
+    mono: "TG",
+    name: "Telegram-бот",
+    about: "Управление колонкой из Telegram, отправка заметок голосом и удалённый чат",
+    more: "Позволяет давать команды колонке (/say, /vol, /status) и общаться с Джарвисом из любого места",
+    on: isSet && isEnabled,
+    need: false,
+    state: stText,
+    body: `<p class="note">Создайте бота в Telegram и укажите его токен и ваш Chat ID. Бот принимает команды только от вас.</p>
+      <div class="f">
+        <label for="tg-token">Токен бота из @BotFather ${tg.token ? `<small class="muted">(${esc(tg.token)})</small>` : ""}</label>
+        <input type="password" id="tg-token" placeholder="${isSet ? "Оставьте пустым, чтобы не менять" : "Например, 1234567890:AAH..."}" autocomplete="off">
+      </div>
+      <div class="f">
+        <label for="tg-chat-id">Ваш Telegram Chat ID</label>
+        <input type="text" id="tg-chat-id" value="${esc(tg.chat_id || "")}" placeholder="Например, 123456789" autocomplete="off">
+      </div>
+      <label class="sw">
+        <input type="checkbox" id="tg-enabled"${isEnabled ? " checked" : ""}>
+        <span class="tr"></span>Включить бота
+      </label>
+      <div class="row">
+        <button class="btn primary" id="tg-save">Сохранить</button>
+        <button class="btn" id="tg-test">Проверить связь</button>
+      </div>
+      ${vpnRow("telegram")}
+      <details>
+        <summary>Инструкция: как создать бота и узнать Chat ID</summary>
+        <ol class="how">
+          <li>Откройте в Telegram бота <b>@BotFather</b> и отправьте команду <code>/newbot</code>.</li>
+          <li>Придумайте название и юзернейм (например, <code>MyMidiJarvis_bot</code>).</li>
+          <li>Скопируйте выданный API токен и вставьте в поле выше.</li>
+          <li>Найдите своего созданного бота в Telegram и нажмите <b>Start</b>.</li>
+          <li>Чтобы узнать свой Chat ID: откройте бота <b>@userinfobot</b> — он покажет ваш Id. Также если просто написать любому своему новому боту, он пришлёт ваш Chat ID в ответ.</li>
+        </ol>
+      </details>
+      <details>
+        <summary>Команды бота и голосовые фразы</summary>
+        <ul class="how">
+          <li><code>/say &lt;текст&gt;</code> — сказать фразу вслух на Станции</li>
+          <li><code>/vol 0-10</code> — изменить громкость колонки</li>
+          <li><code>/status</code> — посмотреть состояние колонки и сервисов</li>
+          <li><code>/remember &lt;факт&gt;</code> — сохранить факт в долговременную память</li>
+          <li><code>/memory</code> — список всего, что помнит Джарвис</li>
+          <li><code>/forget &lt;слово&gt;</code> — удалить факт из памяти</li>
+          <li><b>Любой текст</b> — диалог с Джарвисом с учётом вашей памяти</li>
+          <li><b>Голосом на колонке</b>: <i>«Джарвис, отправь в телеграм список покупок: ...»</i></li>
+        </ul>
+      </details>`,
+    drop: isSet ? `<button class="btn ghost danger" id="tg-clear">Убрать бота</button>` : ""
+  };
+}
+
+function memoryConn() {
+  const mem = S.memory || {};
+  const items = mem.items || [];
+  const n = items.length;
+  const word = n % 10 === 1 && n % 100 !== 11 ? "факт" : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? "факта" : "фактов";
+
+  const list = items.length ? `
+    <div class="ek-list">
+      ${items.map((it) => `
+        <div class="ek on">
+          <b>🧠</b>
+          <span class="ek-st" title="${esc(it.fact)}">${esc(it.fact)}</span>
+          <span class="spacer"></span>
+          <button class="ib" data-mem-del="${esc(it.id)}" aria-label="Удалить" data-tip="Удалить факт">${icon("x")}</button>
+        </div>
+      `).join("")}
+    </div>`
+    : `<p class="note">Память пока пуста. Добавьте факты ниже или просто скажите колонке: «Джарвис, запомни, что...»</p>`;
+
+  return {
+    id: "memory",
+    group: "services",
+    mono: "🧠",
+    name: "Личная память",
+    about: "Долговременные воспоминания о вас, ваших привычках, имени и семье",
+    more: "Факты автоматически учитываются моделью при каждом разговоре",
+    on: n > 0,
+    state: n > 0 ? `${n} ${word}` : "пусто",
+    body: `<p class="note">Джарвис помнит эти факты между разговорами и перезапусками колонки, учитывая их в ответах.</p>
+      ${list}
+      <div class="f">
+        <label for="mem-new">Новый факт</label>
+        <div class="row">
+          <input type="text" id="mem-new" placeholder="Например: Хозяина зовут Александр, пьёт кофе без сахара" autocomplete="off">
+          <button class="btn primary" id="mem-add">Запомнить</button>
+        </div>
+      </div>
+      <p class="note">💡 <b>Голосовое управление:</b> скажите колонке: <i>«Джарвис, запомни: я люблю кофе без сахара»</i> или <i>«Джарвис, забудь про кофе»</i>.</p>`,
+    drop: ""
+  };
+}
 function smartLifeConn() {
   const t = S.smartlife || {}, lg = t.login || {}, devs = t.devices || [];
   const local = devs.filter((d) => d.local).length;
@@ -668,10 +772,17 @@ function connDefs() {
         <div class="netres" id="net-res"></div>
         <h3>Что идёт через VPN</h3><div class="vpn-list">${VPN_NAMES.map(([id, n]) => `<label class="sw"><input type="checkbox" data-vpn="${id}"${S.vpn?.[id] ? " checked" : ""}><span class="tr"></span>${n}</label>`).join("")}</div>`,
       drop: v.set ? `<button class="btn ghost danger" id="vless-clear">Убрать VPN</button>` : "" },
+    telegramConn(),
+    memoryConn(),
   ];
 }
 
-const CONN_GROUPS = [["voice", "Голос и мозг", "Чем Джарвис говорит и думает. Достаточно одного"], ["home", "Дом и музыка", ""], ["net", "Сеть", ""]];
+const CONN_GROUPS = [
+  ["voice", "Голос и мозг", "Чем Джарвис говорит и думает. Достаточно одного"],
+  ["services", "Telegram и память", "Управление через Telegram и долговременная память"],
+  ["home", "Дом и музыка", ""],
+  ["net", "Сеть", ""]
+];
 
 function viewConnections() {
   $("#view").innerHTML = `<header class="ph ph-row"><div><h1>Подключения</h1><p class="sub">Ключи хранятся только на колонке и обратно в браузер не отдаются</p></div>
@@ -689,6 +800,8 @@ function viewConnections() {
     if (e.key === "Escape" && CONN.open) connClose();
     if (e.key === "Enter" && e.target.matches("input[id^='k-']")) $(`[data-key="${e.target.id.slice(2)}"]`)?.click();
     if (e.key === "Enter" && e.target.id === "sl-code") $("#sl-in")?.click();
+    if (e.key === "Enter" && e.target.id === "mem-new") $("#mem-add")?.click();
+    if (e.key === "Enter" && (e.target.id === "tg-token" || e.target.id === "tg-chat-id")) $("#tg-save")?.click();
   };
   drawConns();
 }
@@ -798,6 +911,13 @@ async function connClick(e) {
     if (rm && !confirm(`Убрать ключ ${i + 1} с колонки?`)) return;
     return act(ek, async () => { await api("PUT", "/api/eleven-keys", rm ? { remove: i } : { reset: i }); await redraw(); }, rm ? "Ключ убран" : "Ключ снова в работе");
   }
+  const md = t.closest("[data-mem-del]");
+  if (md) {
+    return act(md, async () => {
+      await api("DELETE", "/api/memory", { id: md.dataset.memDel });
+      await redraw();
+    }, "Удалено из памяти");
+  }
   const tile = t.closest(".cn[data-conn]");
   if (tile) return connOpen(tile.dataset.conn);
   const net = t.closest("[data-net]");
@@ -854,6 +974,34 @@ async function connClick(e) {
     case "yt-clear": if (confirm("Убрать вход в YouTube с колонки?")) act(btn, async () => { await api("DELETE", "/api/youtube"); await redraw(); }); return;
     case "vless-save": return act(btn, async () => { await api("PUT", "/api/vless", { link: $("#vless").value }); $("#vless").value = ""; await redraw(); }, "Ссылка сохранена — проверьте связь");
     case "vless-clear": if (confirm("Убрать VPN? Колонка пойдёт в интернет напрямую.")) act(btn, async () => { await api("PUT", "/api/vless", { link: "" }); await redraw(); }); return;
+    case "tg-save": return act(btn, async () => {
+      const token = $("#tg-token")?.value.trim();
+      const chatId = $("#tg-chat-id")?.value.trim();
+      const enabled = $("#tg-enabled")?.checked ?? true;
+      const body = { chat_id: chatId, enabled: enabled };
+      if (token) body.token = token;
+      await api("PUT", "/api/telegram", body);
+      if ($("#tg-token")) $("#tg-token").value = "";
+      await redraw();
+    }, "Настройки Telegram сохранены");
+    case "tg-test": return act(btn, async () => {
+      const token = $("#tg-token")?.value.trim();
+      const chatId = $("#tg-chat-id")?.value.trim();
+      await api("POST", "/api/telegram/test", { token: token, chat_id: chatId });
+    }, "Тестовое сообщение отправлено в Telegram!");
+    case "tg-clear": if (confirm("Убрать настройки Telegram-бота с колонки?")) act(btn, async () => {
+      await api("DELETE", "/api/telegram");
+      await redraw();
+    }, "Telegram отключён"); return;
+    case "mem-add": {
+      const val = $("#mem-new")?.value.trim();
+      if (!val) return toast("Введите факт для сохранения", true);
+      return act(btn, async () => {
+        await api("POST", "/api/memory", { fact: val });
+        if ($("#mem-new")) $("#mem-new").value = "";
+        await redraw();
+      }, "Факт сохранён в память");
+    }
   }
 }
 

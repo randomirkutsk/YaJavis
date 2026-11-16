@@ -552,10 +552,17 @@ func main() {
 		s := store.Get()
 		leds.Configure(s.LedFor())
 	}
+	memory := NewMemoryStore(filepath.Join(*dataDir, "memory.json"))
+	tools.Memory = memory
 	engine := &Engine{store: store, proxy: proxy, mic: mic, player: player, leds: leds, tools: tools,
 		journal: journal, wake: LoadWake(*dataDir, store), dataDir: *dataDir, train: &Trainer{dataDir: *dataDir, store: store},
 		bg: &BgRecorder{store: store, client: func() *http.Client { return proxy.ClientFor("gdrive", 0) },
-			drive: &GDrive{store: store, client: func() *http.Client { return proxy.ClientFor("gdrive", 0) }}}}
+			drive: &GDrive{store: store, client: func() *http.Client { return proxy.ClientFor("gdrive", 0) }}},
+		memory: memory}
+	telegram := NewTelegramBot(store, proxy, engine, memory)
+	tools.Telegram = telegram
+	engine.telegram = telegram
+	go telegram.Start()
 	engine.stt = NewSTT(func() string { return store.Get().OpenAIKey }, func() *http.Client { return proxy.ClientFor("openai", 0) })
 	engine.cmds = NewCmdSpotter(*dataDir, engine.onCommand)
 	voiceTestHook = engine.VoiceTest

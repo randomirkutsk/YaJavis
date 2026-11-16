@@ -76,6 +76,10 @@ type Settings struct {
 
 	ElevenKeys []ElevenKey `json:"eleven_keys,omitempty"` // все ключи ElevenLabs; ElevenLabsKey — тот, что сейчас с квотой
 
+	TelegramBotToken string      `json:"telegram_bot_token"`
+	TelegramChatID   string      `json:"telegram_chat_id"`
+	TelegramEnabled  bool        `json:"telegram_enabled"`
+
 	Vless       string          `json:"vless"`
 	ProxyYandex bool            `json:"proxy_yandex"`  // обычно Яндекс — напрямую (старая настройка, теперь VPN["yandex"])
 	VPN         map[string]bool `json:"vpn,omitempty"` // галочка «через VPN» у подключения (netroute.go)

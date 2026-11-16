@@ -26,6 +26,8 @@ type Tools struct {
 	HomeAssistant *HomeAssistant
 	Xiaomi        *Xiaomi
 	SmartLife     *SmartLife
+	Memory        *MemoryStore
+	Telegram      *TelegramBot
 	Room          func() string                                  // комната колонки из настроек
 	Use           func(ch string) bool                           // галочки «через что управлять домом» (настройки колонки)
 	Music         func(ctx context.Context, query string) string // включить музыку с YouTube (nil — нельзя)
@@ -377,6 +379,25 @@ func (t *Tools) Definitions() []any {
 	if t.use("alice") {
 		defs = append(defs, aliceDefinition())
 	}
+	if t.Memory != nil {
+		defs = append(defs, map[string]any{"type": "function", "name": "remember",
+			"description": "Сохранить факт или предпочтение о хозяине в долговременную память (имя, предпочтения, привычки, семья, питомцы). Вызывай, когда человек говорит «запомни, что...», «меня зовут...», «я люблю...».",
+			"parameters": map[string]any{"type": "object", "properties": map[string]any{
+				"fact": map[string]any{"type": "string", "description": "краткий факт о хозяине от третьего лица, например «Хозяина зовут Александр», «Любимый чай — эрл грей»"}},
+				"required": []any{"fact"}}})
+		defs = append(defs, map[string]any{"type": "function", "name": "forget",
+			"description": "Удалить факт из долговременной памяти. Вызывай, когда человек просит забыть («забудь, что...», «удали из памяти»).",
+			"parameters": map[string]any{"type": "object", "properties": map[string]any{
+				"query": map[string]any{"type": "string", "description": "ключевое слово или тема для удаления, например «чай»"}},
+				"required": []any{"query"}}})
+	}
+	if t.Telegram != nil && t.Telegram.Configured() {
+		defs = append(defs, map[string]any{"type": "function", "name": "send_telegram",
+			"description": "Отправить сообщение или напоминание хозяину в Telegram. Вызывай, когда просят отправить что-то в телеграм, скинуть в телегу или напомнить в телеграме.",
+			"parameters": map[string]any{"type": "object", "properties": map[string]any{
+				"message": map[string]any{"type": "string", "description": "текст сообщения для отправки"}},
+				"required": []any{"message"}}})
+	}
 	if t.token() == "" || !t.use("yandex") || !t.hasCatalog() {
 		return defs // список устройств Яндекса не загрузился — без него модель зовёт инструмент вслепую; пусть передаёт Алисе
 	}
@@ -512,6 +533,39 @@ func (t *Tools) Call(ctx context.Context, name, args string) string {
 	}
 	if name == "smart_life" && t.SmartLife.ready() {
 		return t.SmartLife.control(ctx, args)
+	}
+	if name == "remember" && t.Memory != nil {
+		var a struct{ Fact string `json:"fact"` }
+		if json.Unmarshal([]byte(args), &a) == nil && strings.TrimSpace(a.Fact) != "" {
+			it, err := t.Memory.Add(a.Fact)
+			if err != nil {
+				return "Не удалось запомнить: " + err.Error()
+			}
+			return fmt.Sprintf("Запомнил: %s", it.Fact)
+		}
+		return "Не понял, что именно запомнить."
+	}
+	if name == "forget" && t.Memory != nil {
+		var a struct{ Query string `json:"query"` }
+		if json.Unmarshal([]byte(args), &a) == nil && strings.TrimSpace(a.Query) != "" {
+			n := t.Memory.DeleteByQuery(a.Query)
+			if n > 0 {
+				return fmt.Sprintf("Удалил из памяти (записей: %d).", n)
+			}
+			return "В памяти не нашлось подходящих записей."
+		}
+		return "Не понял, что именно забыть."
+	}
+	if name == "send_telegram" && t.Telegram != nil {
+		var a struct{ Message string `json:"message"` }
+		if json.Unmarshal([]byte(args), &a) == nil && strings.TrimSpace(a.Message) != "" {
+			err := t.Telegram.SendToOwner(a.Message)
+			if err != nil {
+				return "Не удалось отправить в Telegram: " + err.Error()
+			}
+			return "Сообщение успешно отправлено в Telegram."
+		}
+		return "Не указан текст сообщения."
 	}
 	if name == "play_music" && t.Music != nil {
 		var a struct {
