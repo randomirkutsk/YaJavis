@@ -564,7 +564,7 @@ function telegramConn() {
       </div>
       <div class="f">
         <label for="tg-chat-id">Telegram Chat ID (можно несколько через запятую)</label>
-        <input type="text" id="tg-chat-id" value="${esc(tg.chat_id || "")}" placeholder="Например: 134460301, 987654321" autocomplete="off">
+        <input type="text" id="tg-chat-id" value="${esc(tg.chat_id || "")}" placeholder="Например: 123456789, 987654321" autocomplete="off">
         <small class="muted" style="margin-top:-6px;display:block;">Укажите ID через запятую (например, ваш и жены), чтобы ботом могли пользоваться члены семьи.</small>
       </div>
       <label class="sw">
@@ -584,7 +584,7 @@ function telegramConn() {
           <li>Скопируйте выданный API токен и вставьте в поле выше.</li>
           <li>Найдите своего созданного бота в Telegram и нажмите <b>Start</b>.</li>
           <li><b>Как узнать Chat ID:</b> откройте бота <b>@userinfobot</b> — он покажет ваш цифровой Id. Либо просто напишите любому новому боту — он сам пришлёт ваш Chat ID в ответ.</li>
-          <li><b>Как добавить жену или семью:</b> пусть супруга напишет вашему боту любое сообщение — бот пришлёт её Chat ID. Скопируйте и допишите его в поле Chat ID через запятую (например: <code>134460301, 987654321</code>) и нажмите «Сохранить».</li>
+          <li><b>Как добавить жену или семью:</b> пусть супруга напишет вашему боту любое сообщение — бот пришлёт её Chat ID. Скопируйте и допишите его в поле Chat ID через запятую (например: <code>123456789, 987654321</code>) и нажмите «Сохранить».</li>
         </ol>
       </details>
       <details>
