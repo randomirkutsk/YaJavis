@@ -369,7 +369,11 @@ func (e *Engine) classicBrain(cfg Settings, p Profile) Brain {
 			return askOpenAI(ctx, e.proxy.Client(60*time.Second), cfg.OpenAIKey, p, instructions, text, e.tools)
 		}
 		if cfg.GeminiKey != "" {
-			return askGemini(ctx, e.proxy.ClientFor("gemini", 60*time.Second), cfg.GeminiKey, instructions, text, p.WebSearch)
+			pref := p.LLMModel
+			if pref == "" {
+				pref = p.BackendModel
+			}
+			return askGemini(ctx, e.proxy.ClientFor("gemini", 60*time.Second), cfg.GeminiKey, pref, instructions, text, p.WebSearch)
 		}
 		return "", errors.New("нет ключа OpenAI или Gemini")
 	}

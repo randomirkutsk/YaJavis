@@ -522,7 +522,11 @@ func (b *TelegramBot) handleMessage(token string, chatID, senderID int64, text s
 	var err error
 
 	if s.GeminiKey != "" && (p.Engine == "gemini" || s.OpenAIKey == "") {
-		answer, err = askGemini(ctx, b.proxy.ClientFor("gemini", 45*time.Second), s.GeminiKey, instr, text, p.WebSearch)
+		pref := p.LLMModel
+		if pref == "" {
+			pref = p.BackendModel
+		}
+		answer, err = askGemini(ctx, b.proxy.ClientFor("gemini", 45*time.Second), s.GeminiKey, pref, instr, text, p.WebSearch)
 	} else if s.OpenAIKey != "" {
 		answer, err = askOpenAI(ctx, b.proxy.ClientFor("openai", 45*time.Second), s.OpenAIKey, p, instr, text, b.engine.tools)
 	} else if s.ChatGPT.SignedIn() {

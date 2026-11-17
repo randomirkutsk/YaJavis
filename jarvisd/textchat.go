@@ -171,7 +171,11 @@ func (e *Engine) TextTurn(text string, speak bool) {
 	instr := e.instructions(s, p) + textRules + "\n\n" + backendRules + e.tools.Context()
 	switch {
 	case s.GeminiKey != "" && (p.Engine == "gemini" || s.OpenAIKey == ""):
-		answer, err = askGemini(ctx, e.proxy.ClientFor("gemini", 60*time.Second), s.GeminiKey, instr, text, p.WebSearch)
+		pref := p.LLMModel
+		if pref == "" {
+			pref = p.BackendModel
+		}
+		answer, err = askGemini(ctx, e.proxy.ClientFor("gemini", 60*time.Second), s.GeminiKey, pref, instr, text, p.WebSearch)
 	case s.OpenAIKey != "":
 		answer, err = askOpenAI(ctx, e.proxy.ClientFor("openai", 60*time.Second), s.OpenAIKey, p, instr, text, e.tools)
 	case s.ChatGPT.SignedIn():

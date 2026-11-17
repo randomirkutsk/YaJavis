@@ -482,7 +482,11 @@ func (e *Engine) brain(s Settings, p Profile) Brain {
 			}
 			log.Printf("мозг: подписка ChatGPT не ответила (%v) — спрашиваю Gemini", err)
 		}
-		return askGemini(ctx, e.proxy.ClientFor("gemini", 60*time.Second), s.GeminiKey, instr, task, p.WebSearch)
+		pref := p.BackendModel
+		if pref == "" {
+			pref = p.LLMModel
+		}
+		return askGemini(ctx, e.proxy.ClientFor("gemini", 60*time.Second), s.GeminiKey, pref, instr, task, p.WebSearch)
 	}
 }
 
